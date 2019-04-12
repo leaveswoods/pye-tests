@@ -6,6 +6,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver.common.keys import Keys
+from selenium.common.exceptions import TimeoutException
 from pprint import pprint
 from pathlib import Path
 import json
@@ -14,7 +15,7 @@ import random
 landing_url = 'http://localhost:8000/landing/tsd?ln=fr'
 chrome_options = webdriver.ChromeOptions()
 chrome_options.add_argument("--window-size=1380,900")
-# chrome_options.add_argument("--headless")
+chrome_options.add_argument("--headless")
 time_out = 20
 home_path = str(Path.home())
 en_tranlation_path = home_path + '/code/pye.today-front-end/src/translations/en.json'
@@ -34,6 +35,8 @@ class buy_parking_dining(unittest.TestCase):
     def setUp(self):
         self.browser = webdriver.Chrome(chrome_options=chrome_options)
         self.wait = webdriver.support.ui.WebDriverWait(self.browser, time_out)
+        self.coupon_index = None
+        self.guest_number = None
 
     def test_buy(self):
         self.select_event()
@@ -51,9 +54,9 @@ class buy_parking_dining(unittest.TestCase):
         if category == translations['parking']:
             self.select_random_parking()
             self.click_dining()
-            self.select_random_restaurant()
+            self.check_random_coupon_with_changes()
         elif category == translations['dining']:
-            self.select_random_restaurant()
+            self.check_random_coupon_with_changes()
             self.click_parking()
             self.select_random_parking()
         # Todo add hotel select
@@ -67,7 +70,7 @@ class buy_parking_dining(unittest.TestCase):
         self.fill_personal_info()
         self.fill_credit_card()
         self.click_buy()
-        self.check_facture_dispay()
+        self.check_buy_success()
         time.sleep(5)
 
     def select_event(self):
@@ -161,13 +164,33 @@ class buy_parking_dining(unittest.TestCase):
         return self.wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, selector)))
 
     # dining
-    def select_random_restaurant(self):
+    def select_random_coupon(self):
         coupons = self.wait.until(
             lambda browser: self.browser.find_elements_by_class_name("restaurant-coupon"))
-        index = random.randint(0, len(coupons) - 1)
-        coupons[index].find_element_by_class_name('plus-btn').click()
+        if not self.coupon_index and self.coupon_index != 0:
+            self.coupon_index = random.randint(0, len(coupons) - 1)
+        return coupons[self.coupon_index]
 
-    # confirmation
+    def check_random_coupon(self):
+        self.select_random_coupon().find_element_by_class_name('plus-btn').click()
+
+    def check_random_coupon_with_changes(self):
+        self.select_guest()
+        self.select_random_coupon().find_element_by_class_name('plus-btn').click()
+
+    def select_guest(self):
+        guest_selector = self.select_random_coupon(
+        ).find_element_by_class_name('no-guests-selector')
+
+        select = Select(guest_selector)
+        if not self.guest_number:
+            self.guest_number = random.randint(
+                0, len(select.options) - 1)
+
+        select.select_by_index(self.guest_number)
+
+        # confirmation
+
     def fill_personal_info(self):
         state = Select(self.wait.until(
             lambda browser: self.browser.find_element_by_id("state")))
@@ -273,6 +296,12 @@ class buy_parking_dining(unittest.TestCase):
     def check_facture_dispay(self):
         self.wait.until_not(lambda browser: self.browser.find_element_by_class_name(
             "modal-title").text == '')
+
+    def check_buy_success(self):
+        try:
+            self.check_facture_dispay()
+        except TimeoutException:
+            self.wait.until(EC.alert_is_present())
 
     # header
     def find_nav_step(self, step_name, active):
