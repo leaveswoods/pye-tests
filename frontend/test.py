@@ -11,29 +11,12 @@ from pprint import pprint
 from pathlib import Path
 import json
 import random
-
-landing_url = 'http://localhost:8000/landing/tsd?ln=fr'
-chrome_options = webdriver.ChromeOptions()
-chrome_options.add_argument("--window-size=1380,900")
-chrome_options.add_argument("--headless")
-time_out = 20
-home_path = str(Path.home())
-en_tranlation_path = home_path + '/code/pye.today-front-end/src/translations/en.json'
-fr_tranlation_path = home_path + '/code/pye.today-front-end/src/translations/fr.json'
-translations = ''
-if 'ln=en' in landing_url:
-    with open(en_tranlation_path) as f:
-        translations = json.load(f)
-elif 'ln=fr' in landing_url:
-    with open(fr_tranlation_path) as f:
-        translations = json.load(f)
-else:
-    raise Exception('should provide a lanuage param in url')
+import sys
 
 
 class buy_parking_dining(unittest.TestCase):
     def setUp(self):
-        self.browser = webdriver.Chrome(chrome_options=chrome_options)
+        self.browser = webdriver.Chrome(options=chrome_options)
         self.wait = webdriver.support.ui.WebDriverWait(self.browser, time_out)
         self.coupon_index = None
         self.guest_number = None
@@ -367,4 +350,31 @@ class buy_parking_dining(unittest.TestCase):
 
 
 if __name__ == '__main__':
+    test_env = 'local'
+    if (len(sys.argv) > 1):
+        test_env = sys.argv[1]
+
+    landing_url = 'http://localhost:8000/landing/tsd?ln=fr'
+    if test_env == 'dev':
+        landing_url = 'https://dev.pye.today/landing/tsd?ln=fr'
+    elif test_env == 'urban':
+        landing_url = 'https://urban.pye.today/landing/tsd?ln=fr'
+    chrome_options = webdriver.ChromeOptions()
+    chrome_options.add_argument("--window-size=1380,900")
+    # chrome_options.add_argument("--headless")
+    time_out = 20
+    home_path = str(Path.home())
+    en_tranlation_path = home_path + '/code/pye.today-front-end/src/translations/en.json'
+    fr_tranlation_path = home_path + '/code/pye.today-front-end/src/translations/fr.json'
+    translations = ''
+    if 'ln=en' in landing_url:
+        with open(en_tranlation_path) as f:
+            translations = json.load(f)
+    elif 'ln=fr' in landing_url:
+        with open(fr_tranlation_path) as f:
+            translations = json.load(f)
+    else:
+        raise Exception('should provide a lanuage param in url')
+
+    del sys.argv[1:]
     unittest.main()
