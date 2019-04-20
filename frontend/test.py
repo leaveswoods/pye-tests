@@ -6,7 +6,8 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver.common.keys import Keys
-from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import TimeoutException, NoSuchElementException
+from selenium.webdriver.common.action_chains import ActionChains
 from pprint import pprint
 from pathlib import Path
 import json
@@ -20,6 +21,7 @@ class buy_parking_dining(unittest.TestCase):
         self.wait = webdriver.support.ui.WebDriverWait(self.browser, time_out)
         self.coupon_index = None
         self.guest_number = None
+        self.hotel_index = None
 
     def test_buy(self):
         self.select_event()
@@ -34,26 +36,29 @@ class buy_parking_dining(unittest.TestCase):
         # self.find_language_selector()
         category = self.check_activate_category()
 
-        if category == translations['parking']:
-            self.select_random_parking()
-            self.click_dining()
-            self.check_random_coupon_with_changes()
-        elif category == translations['dining']:
-            self.check_random_coupon_with_changes()
-            self.click_parking()
-            self.select_random_parking()
+        # if category == translations['parking']:
+        #     self.select_random_parking()
+        #     self.click_dining()
+        #     self.check_random_coupon_with_changes()
+        # elif category == translations['dining']:
+        #     self.check_random_coupon_with_changes()
+        #     self.click_parking()
+        #     self.select_random_parking()
         # Todo add hotel select
+        self.click_hotel()
+        self.preview_random_hotel()
+        # self.click_confirmation()
 
-        self.click_confirmation()
         # should wait a bit to make sure the usr_sesson update api response
         time.sleep(3)
+
         # refresh page to see if the usr_session can be restored
-        self.browser.refresh()
-        self.click_confirmation()
-        self.fill_personal_info()
-        self.fill_credit_card()
-        self.click_buy()
-        self.check_buy_success()
+        # self.browser.refresh()
+        # self.click_confirmation()
+        # self.fill_personal_info()
+        # self.fill_credit_card()
+        # self.click_buy()
+        # self.check_buy_success()
         time.sleep(5)
 
     def select_event(self):
@@ -74,6 +79,20 @@ class buy_parking_dining(unittest.TestCase):
         if element.text == expect:
             return element
     # catory box
+
+    def find_category(self, category, is_active):
+        print('Finding %s category element' % (category))
+        selector = '.category-btn span.category-item'
+        category_item = None
+        elements = self.wait.until(
+            lambda browser: self.browser.find_elements_by_css_selector(
+                selector)
+        )
+        for element in elements:
+            if element.text == category:
+                return element
+
+        raise Exception('Cannot find %s category item' % (category))
 
     def check_activate_category(self):
         selector = 'div.category-btn.active > span.category-item'
@@ -104,35 +123,17 @@ class buy_parking_dining(unittest.TestCase):
         if not image.size['width'] > 0 or not image.size['height'] > 0:
             raise Exception('Event image not display correctly')
 
-    def find_dining_category(self, active):
-        print('Finding Dining category element')
-        selector = "div.category-box-wrapper ul > li:nth-child(2) div.category-btn span.category-item"
-        if active:
-            selector = "div.category-box-wrapper ul > li:nth-child(2) div.category-btn.active span.category-item"
-        return self.query_equal(selector, translations['dining'])
-
     def click_dining(self):
-        self.find_dining_category(False).click()
-
-    def find_parking_category(self, active):
-        print('Finding parking category element')
-        selector = "div.category-box-wrapper ul > li:nth-child(1) div.category-btn span.category-item"
-        if active:
-            selector = "div.category-box-wrapper ul > li:nth-child(1) div.category-btn.active span.category-item"
-        return self.query_equal(selector, translations['parking'])
+        self.find_category(translations['dinning'], None).click()
 
     def click_parking(self):
-        self.find_parking_category(False).click()
+        self.find_category(translations['parking'], None).click()
 
-    def find_confirmation_category(self, active):
-        print('Finding confirmation category item')
-        selector = "div.category-box-wrapper  ul > li:nth-child(3) div.category-btn span"
-        if active:
-            selector = "div.category-box-wrapper  ul > li:nth-child(3) div.category-btn.active span"
-        return self.query_equal(selector, translations['confirmation'])
+    def click_hotel(self):
+        self.find_category(translations['hotel'], None).click()
 
     def click_confirmation(self):
-        self.find_confirmation_category(False).click()
+        self.find_category(translations['confirmation'], None).click()
 
     # Parking container
     def select_random_parking(self):
@@ -172,7 +173,42 @@ class buy_parking_dining(unittest.TestCase):
 
         select.select_by_index(self.guest_number)
 
-        # confirmation
+    # hotel
+    def select_random_hotel(self):
+        hotels = self.wait.until(
+            lambda browser: self.browser.find_elements_by_class_name(
+                'hotel-card-wrapper')
+        )
+        if not self.hotel_index and self.hotel_index != 0:
+            self.hotel_index = random.randint(0, len(hotels) - 1)
+        return hotels[self.hotel_index]
+
+    def preview_random_hotel(self):
+        hotel_name = self.select_random_hotel().find_element_by_css_selector('.name')
+        if not hotel_name:
+            raise Exception('Cannot find hotel name to click on')
+        attempt = 0
+        back_to_list = None
+        while attempt < 10000 and not back_to_list:
+            try:
+                back_to_list = self.find_back_to_list()
+                if back_to_list:
+                    print('Preview hotel')
+                    break
+            except NoSuchElementException:
+                hotel_name.click()
+                attempt += 1
+        if not back_to_list:
+            raise Exception('Cannot get into hotel preview')
+        return
+
+    def find_back_to_list(self):
+        return self.browser.find_element_by_css_selector('.back-btn.nav-item')
+
+    def find_room_card(self):
+        return
+
+    # confirmation
 
     def fill_personal_info(self):
         state = Select(self.wait.until(
