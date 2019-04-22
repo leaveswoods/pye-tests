@@ -36,29 +36,33 @@ class buy_parking_dining(unittest.TestCase):
         # self.find_language_selector()
         category = self.check_activate_category()
 
-        # if category == translations['parking']:
-        #     self.select_random_parking()
-        #     self.click_dining()
-        #     self.check_random_coupon_with_changes()
-        # elif category == translations['dining']:
-        #     self.check_random_coupon_with_changes()
-        #     self.click_parking()
-        #     self.select_random_parking()
-        # Todo add hotel select
-        self.click_hotel()
-        self.preview_random_hotel()
-        # self.click_confirmation()
-
+        if category == translations['parking']:
+            self.select_random_parking()
+            self.click_dining()
+            self.check_random_coupon_with_changes()
+            self.preview_random_hotel()
+            self.check_hotel_room()
+        elif category == translations['dining']:
+            self.check_random_coupon_with_changes()
+            self.click_parking()
+            self.select_random_parking()
+            self.click_hotel()
+            self.preview_random_hotel()
+            self.check_hotel_room()
+        self.click_confirmation()
+        self.fill_personal_info()
         # should wait a bit to make sure the usr_sesson update api response
         time.sleep(3)
 
         # refresh page to see if the usr_session can be restored
-        # self.browser.refresh()
-        # self.click_confirmation()
-        # self.fill_personal_info()
-        # self.fill_credit_card()
-        # self.click_buy()
-        # self.check_buy_success()
+        self.browser.refresh()
+        # TODO: hotel checked item restore takes too much time
+        time.sleep(5)
+        self.click_confirmation()
+        self.check_hotel_confirmation()
+        self.fill_credit_card()
+        self.click_buy()
+        self.check_buy_success()
         time.sleep(5)
 
     def select_event(self):
@@ -83,15 +87,14 @@ class buy_parking_dining(unittest.TestCase):
     def find_category(self, category, is_active):
         print('Finding %s category element' % (category))
         selector = '.category-btn span.category-item'
-        category_item = None
         elements = self.wait.until(
             lambda browser: self.browser.find_elements_by_css_selector(
-                selector)
+                selector
+            )
         )
         for element in elements:
             if element.text == category:
                 return element
-
         raise Exception('Cannot find %s category item' % (category))
 
     def check_activate_category(self):
@@ -150,7 +153,10 @@ class buy_parking_dining(unittest.TestCase):
     # dining
     def select_random_coupon(self):
         coupons = self.wait.until(
-            lambda browser: self.browser.find_elements_by_class_name("restaurant-coupon"))
+            lambda browser: self.browser.find_elements_by_class_name(
+                "restaurant-coupon"
+            )
+        )
         if not self.coupon_index and self.coupon_index != 0:
             self.coupon_index = random.randint(0, len(coupons) - 1)
         return coupons[self.coupon_index]
@@ -194,41 +200,76 @@ class buy_parking_dining(unittest.TestCase):
                 back_to_list = self.find_back_to_list()
                 if back_to_list:
                     print('Preview hotel')
-                    break
+                    return
             except NoSuchElementException:
                 hotel_name.click()
                 attempt += 1
         if not back_to_list:
             raise Exception('Cannot get into hotel preview')
-        return
 
     def find_back_to_list(self):
         return self.browser.find_element_by_css_selector('.back-btn.nav-item')
 
-    def find_room_card(self):
-        return
+    def check_hotel_room(self):
+        self.wait.until(
+            lambda browser: self.browser.find_element_by_css_selector(
+                '.hotel-preview .carousel-wrapper'
+            )
+        )
+        self.wait.until(
+            lambda browser: self.browser.find_element_by_css_selector(
+                '.preview-room-card .plus-btn'
+            )
+        ).click()
 
     # confirmation
+    def check_hotel_confirmation(self):
+        order_details = self.wait.until(
+            lambda browser: self.browser.find_elements_by_css_selector(
+                '.hotel-order-details .row'
+            )
+        )
+        order_details[-1].find_element_by_css_selector('input').click()
 
     def fill_personal_info(self):
         state = Select(self.wait.until(
             lambda browser: self.browser.find_element_by_id("state")))
         state.select_by_value('CA,QC')
-        self.wait.until(lambda browser: self.browser.find_element_by_id(
-            "firstname")).send_keys("Hervé")
-        self.wait.until(lambda browser: self.browser.find_element_by_id(
-            "lastname")).send_keys("Test")
-        self.wait.until(lambda browser: self.browser.find_element_by_id(
-            "email")).send_keys("leaves.woods92@gmail.com")
-        self.wait.until(lambda browser: self.browser.find_element_by_id(
-            "_address.address1")).send_keys("51  rue du Fossé des Tanneurs")
 
-        self.wait.until(lambda browser: self.browser.find_element_by_id(
-            "_address.city")).send_keys("montreal")
-        self.wait.until(lambda browser: self.browser.find_element_by_id(
-            "_address.postal_code")).send_keys("H4L2H3")
-        self.wait.until(lambda browser: self.browser.find_element_by_id(
-            "_contact.phone_number")).send_keys("5145555555")
+        first_name = self.wait.until(lambda browser: self.browser.find_element_by_id(
+            "firstname"))
+        for c in "Hervé":
+            first_name.send_keys(c)
+
+        last_name = self.wait.until(lambda browser: self.browser.find_element_by_id(
+            "lastname"))
+        for c in "Test":
+            last_name.send_keys(c)
+
+        email = self.wait.until(lambda browser: self.browser.find_element_by_id(
+            "email"))
+        for c in "leaves.woods92@gmail.com":
+            email.send_keys(c)
+
+        address = self.wait.until(lambda browser: self.browser.find_element_by_id(
+            "_address.address1"))
+        for c in "51  rue du Fossé des Tanneurs":
+            address.send_keys(c)
+
+        city = self.wait.until(lambda browser: self.browser.find_element_by_id(
+            "_address.city"))
+        for c in "Trois-Rivières":
+            city.send_keys(c)
+
+        postal_code = self.wait.until(lambda browser: self.browser.find_element_by_id(
+            "_address.postal_code"))
+        for c in "H6L2H5":
+            postal_code.send_keys(c)
+
+        phone_number = self.wait.until(lambda browser: self.browser.find_element_by_id(
+            "_contact.phone_number"))
+        for c in "5145555555":
+            phone_number.send_keys(c)
 
     def fill_credit_card(self):
         # The cc form is wrapped in react-stripe element by using iframe for
